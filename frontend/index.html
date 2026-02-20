@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RenderRig Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="background-layer" aria-hidden="true"></div>
+    <main class="app-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <h1>RenderRig</h1>
+          <p class="subtitle">
+            Point at your Kroki server, edit source, preview instantly, and export
+            polished assets.
+          </p>
+        </div>
+      </header>
+
+      <section class="top-toolbar" aria-label="Quick actions">
+        <button
+          id="toolbarMenuToggle"
+          class="toolbar-menu-toggle"
+          type="button"
+          aria-label="Quick actions menu"
+          aria-expanded="false"
+          title="Menu"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <g
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </g>
+          </svg>
+          <span>Menu</span>
+        </button>
+        <div class="icon-menus">
+          <div class="menu" data-menu="command">
+            <button
+              class="menu-trigger"
+              type="button"
+              aria-label="Command Palette"
+              aria-expanded="false"
+              data-tooltip="Command Palette"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <g
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="4 17 10 11 4 5" />
+                  <line x1="12" y1="19" x2="20" y2="19" />
+                </g>
+              </svg>
+              <span class="menu-label">Command Palette</span>
+            </button>
+          </div>
+          <div class="menu" data-menu="copy">
+            <button
+              class="menu-trigger"
+              type="button"
+              aria-label="Copy menu"
+              aria-expanded="false"
+              data-tooltip="Copy"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <g
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </g>
+              </svg>
+              <span class="menu-label">Copy</span>
+            </button>
+            <div class="menu-panel" role="menu" aria-label="Copy options">
+              <div id="copyFormatButtons" class="format-action-list"></div>
+              <button id="editableLinkBtn" class="btn btn-ghost" type="button" disabled title="Copy editable link">
+                Copy editable link
+              </button>
+              <button id="markdownBtn" class="btn btn-ghost" type="button" disabled title="Copy markdown snippet">
+                Copy markdown
+              </button>
+            </div>
+          </div>
+          <div class="menu" data-menu="export">
+            <button
+              class="menu-trigger"
+              type="button"
+              aria-label="Export menu"
+              aria-expanded="false"
+              data-tooltip="Download"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <g
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </g>
+              </svg>
+              <span class="menu-label">Download</span>
+            </button>
+            <div class="menu-panel" role="menu" aria-label="Export options">
+              <div id="exportFormatButtons" class="format-action-list"></div>
+            </div>
+          </div>
+          <div class="menu" data-menu="theme">
+            <button
+              class="menu-trigger"
+              type="button"
+              aria-label="Theme menu"
+              aria-expanded="false"
+              data-tooltip="Theme"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <g
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </g>
+              </svg>
+              <span class="menu-label">Theme</span>
+            </button>
+            <div class="menu-panel theme-menu-panel" role="menu" aria-label="Theme options">
+              <div class="theme-mode-row">
+                <button
+                  id="themeDarkBtn"
+                  class="btn btn-ghost theme-mode-btn"
+                  type="button"
+                  data-theme-mode="dark"
+                  title="Use dark theme variant"
+                >
+                  Dark
+                </button>
+                <button
+                  id="themeLightBtn"
+                  class="btn btn-ghost theme-mode-btn"
+                  type="button"
+                  data-theme-mode="light"
+                  title="Use light theme variant"
+                >
+                  Light
+                </button>
+              </div>
+              <button
+                id="themeClassicBtn"
+                class="btn btn-ghost theme-family-btn"
+                type="button"
+                data-theme-family="renderrig-classic"
+                title="Select Classic family"
+              >
+                Classic
+              </button>
+              <button
+                id="themeAtomBtn"
+                class="btn btn-ghost theme-family-btn"
+                type="button"
+                data-theme-family="atom"
+                title="Select Atom family"
+              >
+                Atom
+              </button>
+              <button
+                id="themeCatppuccinBtn"
+                class="btn btn-ghost theme-family-btn"
+                type="button"
+                data-theme-family="catppuccin"
+                title="Select Catppuccin family"
+              >
+                Catppuccin
+              </button>
+              <button
+                id="themeDraculaBtn"
+                class="btn btn-ghost theme-family-btn"
+                type="button"
+                data-theme-family="dracula"
+                title="Select Dracula family"
+              >
+                Dracula
+              </button>
+              <button
+                id="themeEInkBtn"
+                class="btn btn-ghost theme-family-btn"
+                type="button"
+                data-theme-family="e-ink"
+                title="Select E-Ink family"
+              >
+                E-Ink
+              </button>
+              <button
+                id="themeGithubBtn"
+                class="btn btn-ghost theme-family-btn"
+                type="button"
+                data-theme-family="github"
+                title="Select GitHub family"
+              >
+                GitHub
+              </button>
+              <button
+                id="themeNordBtn"
+                class="btn btn-ghost theme-family-btn"
+                type="button"
+                data-theme-family="nord"
+                title="Select Nord family"
+              >
+                Nord
+              </button>
+              <button
+                id="themeRosePineBtn"
+                class="btn btn-ghost theme-family-btn"
+                type="button"
+                data-theme-family="rose-pine"
+                title="Select Rose Pine family"
+              >
+                Rose Pine
+              </button>
+              <button
+                id="themeUbuntuBtn"
+                class="btn btn-ghost theme-family-btn"
+                type="button"
+                data-theme-family="ubuntu"
+                title="Select Ubuntu family"
+              >
+                Ubuntu
+              </button>
+            </div>
+          </div>
+          <div class="menu" data-menu="debug">
+            <button
+              class="menu-trigger"
+              type="button"
+              aria-label="Options menu"
+              aria-expanded="false"
+              data-tooltip="Options"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <g
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33h-.08a1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51h-.08a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82v-.08a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1v-.08a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </g>
+              </svg>
+              <span class="menu-label">Options</span>
+            </button>
+            <div class="menu-panel" role="menu" aria-label="Options">
+              <label class="menu-field menu-field-inline" for="requestTimeoutSeconds">
+                <span class="menu-field-label">Request Timeout (s)</span>
+                <input
+                  id="requestTimeoutSeconds"
+                  type="number"
+                  min="1"
+                  max="120"
+                  step="1"
+                  inputmode="numeric"
+                  value="5"
+                />
+              </label>
+              <button id="debugModeBtn" class="btn btn-ghost" type="button" title="Toggle debug mode">
+                Debug: Off
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="Diagram workspace">
+        <aside class="panel controls-panel">
+          <details class="config-details">
+            <summary>Kroki Configuration</summary>
+            <div class="config-fields">
+              <label class="field">
+                <span>Kroki Server URL</span>
+                <input
+                  id="serverUrl"
+                  type="url"
+                  placeholder="https://kroki.io"
+                  autocomplete="url"
+                  spellcheck="false"
+                />
+              </label>
+
+              <label class="field">
+                <span>Diagram type</span>
+                <div id="diagramTypeDropdown" class="diagram-type-dropdown">
+                  <button
+                    id="diagramTypeTrigger"
+                    class="diagram-type-trigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    aria-controls="diagramTypeList"
+                  >
+                    <span id="diagramTypeTriggerText">Select diagram type</span>
+                  </button>
+                  <ul id="diagramTypeList" class="diagram-type-list" role="listbox"></ul>
+                </div>
+                <select id="diagramType" class="diagram-type-native" aria-hidden="true" tabindex="-1"></select>
+              </label>
+            </div>
+          </details>
+
+          <label class="field source-field">
+            <span>Diagram source</span>
+            <textarea
+              id="diagramSource"
+              rows="16"
+              spellcheck="false"
+              placeholder="Write diagram source here..."
+            ></textarea>
+          </label>
+        </aside>
+
+        <div
+          id="splitHandle"
+          class="split-handle"
+          role="separator"
+          aria-label="Resize editor and preview panels"
+          aria-orientation="vertical"
+          aria-valuemin="28"
+          aria-valuemax="72"
+          aria-valuenow="46"
+          tabindex="0"
+        ></div>
+
+        <section class="panel preview-panel" aria-live="polite">
+          <div class="preview-status-row">
+            <p id="renderStatusChip" class="render-status-chip idle" role="status" aria-live="polite">
+              Idle
+            </p>
+          </div>
+          <div id="renderBox" class="render-box">
+            <p class="empty-state">Rendered output will appear here.</p>
+          </div>
+
+          <div id="debugPanel" class="meta" hidden>
+            <p><strong>Debug mode:</strong> ON</p>
+            <p><strong>Request type:</strong> <span id="requestTypeMeta">-</span></p>
+            <p><strong>Auto detection:</strong> <span id="autoDetectMeta">-</span></p>
+            <p><strong>Hosted URL:</strong> <span id="hostedUrlMeta">-</span></p>
+            <p><strong>Kroki endpoint:</strong> <span id="endpointMeta">-</span></p>
+            <p><strong>Request timeout:</strong> <span id="requestTimeoutMeta">-</span></p>
+            <p><strong>Last request:</strong> <span id="timeMeta">-</span></p>
+            <p><strong>Last duration:</strong> <span id="requestDurationMeta">-</span></p>
+            <p><strong>Raw request:</strong></p>
+            <pre id="requestRawMeta" class="request-raw">-</pre>
+          </div>
+
+        </section>
+      </section>
+    </main>
+    <div id="actionCallout" class="action-callout" role="status" aria-live="assertive" hidden></div>
+    <div id="commandPalette" class="command-palette" hidden>
+      <button
+        type="button"
+        class="command-palette-backdrop"
+        data-command-palette-close
+        aria-label="Close command palette"
+      ></button>
+      <section
+        class="command-palette-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="commandPaletteTitle"
+      >
+        <p id="commandPaletteTitle" class="command-palette-title">Command Palette</p>
+        <label class="sr-only" for="commandPaletteInput">Command search</label>
+        <input
+          id="commandPaletteInput"
+          class="command-palette-input"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="Type a command..."
+        />
+        <ul id="commandPaletteList" class="command-palette-list" role="listbox" aria-label="Available commands"></ul>
+      </section>
+    </div>
+    <div id="mobileActionSheet" class="mobile-action-sheet" hidden>
+      <button
+        type="button"
+        class="mobile-action-sheet-backdrop"
+        data-mobile-sheet-close
+        aria-label="Close action sheet"
+      ></button>
+      <section
+        class="mobile-action-sheet-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mobileActionSheetTitle"
+      >
+        <header class="mobile-action-sheet-header">
+          <h2 id="mobileActionSheetTitle">Actions</h2>
+          <button id="mobileActionSheetClose" class="btn btn-ghost" type="button">Close</button>
+        </header>
+        <div id="mobileActionSheetBody" class="mobile-action-sheet-body"></div>
+      </section>
+    </div>
+
+    <script src="./constants.js"></script>
+    <script src="./theme.js"></script>
+    <script src="./detector.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -1,58 +1,89 @@
 # RenderRig
 
-RenderRig is a local-first platform for working with the [Kroki](https://kroki.io/) diagram rendering backend through a lightweight vanilla HTML/JavaScript frontend.
+RenderRig is a vanilla HTML/CSS/JavaScript frontend for editing and rendering diagrams with [Kroki](https://kroki.io/).
 
-The project is designed to:
+## Current Capabilities
 
-- Provide a simple browser UI for submitting diagram source text to Kroki and previewing results.
-- Support running both frontend and backend locally with either Docker or Podman.
-- Add an MCP server in the future so LLM tools can interact with Kroki through this repository.
+- Auto-rendering diagram preview (no render button)
+- Kroki server URL input
+- Custom theme-aware diagram type dropdown (includes `Auto Detect`)
+- Auto-detection with candidate validation
+- Dynamic export/copy formats based on selected diagram type support
+- Copy actions:
+  - Copy diagram in supported formats
+  - Copy editable RenderRig link (`#state=...`)
+  - Copy markdown snippet
+- Export actions:
+  - Export diagram in supported formats
+- Options menu:
+  - Debug mode
+  - Configurable request timeout (seconds)
+- Debug panel shows:
+  - request type
+  - endpoint
+  - raw request
+  - timeout value
+  - last request duration
+  - auto-detect details
 
-## Project Status
+## Request Timeout Behavior
 
-Initial documentation and repository bootstrap.
+- Timeout is enforced for Kroki backend requests (POST render, GET fallback, health checks).
+- If elapsed time exceeds configured timeout:
+  - request is cancelled
+  - render status leaves `Rendering...`
+  - error message is shown
 
-Planned next steps:
+## Keyboard Shortcuts
 
-- Add frontend app (`index.html`, `app.js`, styles, and static assets).
-- Add container setup for local backend and frontend orchestration.
-- Add MCP server implementation and tool definitions.
+Uses `Cmd` on macOS and `Ctrl` on non-macOS:
 
-## Goals
+- `Cmd/Ctrl + K`: Command Palette
+- `Cmd/Ctrl + J`: Copy menu
+- `Cmd/Ctrl + H`: Download menu
+- `Cmd/Ctrl + G`: Theme menu
+- `Cmd/Ctrl + O`: Options menu
 
-- Keep the frontend minimal and dependency-light (vanilla HTML + JS).
-- Make local deployment easy for both Docker and Podman users.
-- Expose a clear interface for humans (web UI) and agents (MCP).
+## Run Locally
 
-## Planned Architecture
+You can run it **without starting a server**:
 
-1. **Frontend (this repo)**  
-   Static HTML/JS app that collects diagram source + type and sends render requests to Kroki.
-2. **Kroki backend (containerized)**  
-   Local service used by the frontend for rendering diagrams (SVG/PNG or text formats).
-3. **MCP server (future)**  
-   A local server exposing tools for LLMs to submit diagram source and retrieve results through Kroki.
+1. Open `frontend/index.html` directly in your browser.
 
-## Local Development (Docker or Podman)
+If your browser restricts local file behavior, run a simple static server instead:
 
-RenderRig is intended to support either runtime. Typical flow:
+```bash
+cd frontend
+python3 -m http.server 5173
+```
 
-1. Start Kroki locally in a container.
-2. Start a static frontend server (containerized or host-served).
-3. Open the frontend and point it at your local Kroki endpoint.
+Then open: [http://127.0.0.1:5173](http://127.0.0.1:5173)
 
-## Planned Repository Layout
+## Kroki Backend
+
+Use public Kroki:
+- `https://kroki.io`
+
+Or run local Kroki (example with Docker):
+
+```bash
+docker run --rm -p 8000:8000 yuzutech/kroki
+```
+
+Then set server URL in RenderRig to:
+- `http://127.0.0.1:8000`
+
+## Repository Layout
 
 ```text
 .
+├── AGENTS.md
 ├── README.md
-├── frontend/
-│   ├── index.html
-│   ├── app.js
-│   └── styles.css
-├── containers/
-│   ├── docker-compose.yml
-│   └── podman-compose.yml
-└── mcp/
-    └── (future MCP server implementation)
+└── frontend/
+    ├── app.js
+    ├── constants.js
+    ├── detector.js
+    ├── index.html
+    ├── styles.css
+    └── theme.js
 ```
