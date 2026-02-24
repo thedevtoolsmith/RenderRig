@@ -1,6 +1,5 @@
 (function () {
 const PREVIEW_FORMAT = "svg";
-const MARKDOWN_IMAGE_FORMAT = "png";
 const TEXT_PLAIN_HEADERS = {
   "Content-Type": "text/plain; charset=utf-8",
 };
@@ -373,11 +372,10 @@ const DIAGRAM_FORMAT_SUPPORT = Object.freeze({
 const DEFAULT_SERVER_URL = "https://kroki.io";
 const DEFAULT_DIAGRAM_TYPE = "plantuml";
 const AUTO_DIAGRAM_TYPE_ID = "auto";
-const DEFAULT_THEME_ID = "renderrig-classic-dark";
+const DEFAULT_THEME_ID = "renderrig-classic-light";
 
 window.RenderRigConstants = Object.freeze({
   PREVIEW_FORMAT,
-  MARKDOWN_IMAGE_FORMAT,
   TEXT_PLAIN_HEADERS,
   DIAGRAM_CATALOG,
   DIAGRAM_SAMPLES,

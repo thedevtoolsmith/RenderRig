@@ -3,13 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RenderRig Studio</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
-      rel="stylesheet"
-    />
+    <title>RenderRig</title>
+    <link rel="icon" type="image/png" href="./static/favicon.png" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -17,9 +12,13 @@
     <main class="app-shell">
       <header class="hero">
         <div class="hero-copy">
-          <h1>RenderRig</h1>
+          <h1>
+            <a href="https://github.com/thedevtoolsmith/RenderRig" target="_blank" rel="noopener noreferrer">
+              RenderRig
+            </a>
+          </h1>
           <p class="subtitle">
-            Point at your Kroki server, edit source, preview instantly, and export
+            Point at your <a href="https://kroki.io" target="_blank" rel="noopener noreferrer">Kroki</a> server, edit source, preview instantly, and export
             polished assets.
           </p>
         </div>
@@ -73,6 +72,31 @@
               <span class="menu-label">Command Palette</span>
             </button>
           </div>
+          <div class="menu" data-menu="focus">
+            <button
+              class="menu-trigger"
+              type="button"
+              aria-label="Focus mode"
+              aria-expanded="false"
+              data-tooltip="Focus"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <g
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="15 3 21 3 21 9" />
+                  <polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </g>
+              </svg>
+              <span class="menu-label">Focus Mode</span>
+            </button>
+          </div>
           <div class="menu" data-menu="copy">
             <button
               class="menu-trigger"
@@ -97,11 +121,11 @@
             </button>
             <div class="menu-panel" role="menu" aria-label="Copy options">
               <div id="copyFormatButtons" class="format-action-list"></div>
+              <button id="imageLinkBtn" class="btn btn-ghost" type="button" disabled title="Copy image link">
+                Copy image link
+              </button>
               <button id="editableLinkBtn" class="btn btn-ghost" type="button" disabled title="Copy editable link">
                 Copy editable link
-              </button>
-              <button id="markdownBtn" class="btn btn-ghost" type="button" disabled title="Copy markdown snippet">
-                Copy markdown
               </button>
             </div>
           </div>
@@ -109,7 +133,7 @@
             <button
               class="menu-trigger"
               type="button"
-              aria-label="Export menu"
+              aria-label="Download menu"
               aria-expanded="false"
               data-tooltip="Download"
             >
@@ -128,7 +152,7 @@
               </svg>
               <span class="menu-label">Download</span>
             </button>
-            <div class="menu-panel" role="menu" aria-label="Export options">
+            <div class="menu-panel" role="menu" aria-label="Download options">
               <div id="exportFormatButtons" class="format-action-list"></div>
             </div>
           </div>
@@ -385,8 +409,36 @@
 
         </section>
       </section>
+      <footer class="app-footer">
+        <p>
+          made with <span id="footerEmoji" aria-hidden="true">🤖</span> by
+          <a href="https://thedevtoolsmith.com" target="_blank" rel="noopener noreferrer">thedevtoolsmith</a>
+          <span class="app-footer-separator" aria-hidden="true">·</span>
+          <a
+            class="app-footer-github"
+            href="https://github.com/thedevtoolsmith/RenderRig"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 2C6.48 2 2 6.59 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.45-1.19-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.33 1.11 2.9.85.09-.66.35-1.11.63-1.36-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.74 0 0 .84-.27 2.75 1.05A9.3 9.3 0 0 1 12 7.08c.85 0 1.71.12 2.51.37 1.91-1.32 2.75-1.05 2.75-1.05.55 1.43.2 2.48.1 2.74.64.72 1.03 1.63 1.03 2.75 0 3.95-2.35 4.82-4.59 5.07.36.32.68.95.68 1.92 0 1.39-.01 2.5-.01 2.84 0 .27.18.6.69.49A10.27 10.27 0 0 0 22 12.25C22 6.59 17.52 2 12 2z"
+                fill="currentColor"
+              />
+            </svg>
+            <span>Source</span>
+          </a>
+        </p>
+      </footer>
     </main>
     <div id="actionCallout" class="action-callout" role="status" aria-live="assertive" hidden></div>
+    <div id="focusModeToast" class="focus-mode-toast" role="status" aria-live="polite" hidden>
+      <span class="focus-mode-toast-key">ESC</span>
+      <span class="focus-mode-toast-label">to exit focus mode</span>
+    </div>
+    <button id="focusModeExitBtn" class="focus-exit-btn" type="button" aria-label="Exit focus mode">
+      Exit focus
+    </button>
     <div id="commandPalette" class="command-palette" hidden>
       <button
         type="button"

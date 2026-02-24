@@ -342,7 +342,7 @@ function parseThemeId(themeId) {
 function getThemeId(family, mode) {
   const normalizedMode = mode === "light" ? "light" : "dark";
   if (!Object.prototype.hasOwnProperty.call(THEME_FAMILIES, family)) {
-    const fallbackId = window.RenderRigConstants?.DEFAULT_THEME_ID || "renderrig-classic-dark";
+    const fallbackId = window.RenderRigConstants?.DEFAULT_THEME_ID || "renderrig-classic-light";
     const fallbackParsed = parseThemeId(fallbackId) || { family: "renderrig-classic" };
     return `${fallbackParsed.family}-${normalizedMode}`;
   }
@@ -358,14 +358,14 @@ function hasTheme(themeId) {
 }
 
 function normalizeThemeId(themeId, fallbackThemeId) {
-  const fallbackId = fallbackThemeId || window.RenderRigConstants?.DEFAULT_THEME_ID || "renderrig-classic-dark";
+  const fallbackId = fallbackThemeId || window.RenderRigConstants?.DEFAULT_THEME_ID || "renderrig-classic-light";
   if (hasTheme(themeId)) {
     return themeId;
   }
   if (hasTheme(fallbackId)) {
     return fallbackId;
   }
-  return "renderrig-classic-dark";
+  return "renderrig-classic-light";
 }
 
 function applyThemeTokens(themeId, options = {}) {

@@ -1,3 +1,43 @@
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("./static/ibm-plex-mono-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("./static/ibm-plex-mono-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("./static/space-grotesk-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("./static/space-grotesk-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("./static/space-grotesk-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --workspace-left: 46;
   --split-handle-size: 0.75rem;
@@ -63,9 +103,13 @@ body {
 
 .app-shell {
   position: relative;
+  display: flex;
+  flex-direction: column;
   max-width: 1320px;
   margin: 0 auto;
   padding: 2.5rem 1.2rem 2rem;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .hero {
@@ -220,6 +264,13 @@ body {
 .menu-trigger:focus-visible {
   border-color: var(--accent);
   box-shadow: var(--focus-ring);
+}
+
+.menu.is-toggled .menu-trigger {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+  background: var(--btn-active-bg);
+  color: var(--btn-active-ink);
 }
 
 .menu-panel {
@@ -377,11 +428,35 @@ h1 {
   max-width: 18ch;
 }
 
+h1 a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+h1 a:hover,
+h1 a:focus-visible {
+  color: color-mix(in srgb, var(--ink-main), var(--accent-cool) 20%);
+  border-bottom-color: color-mix(in srgb, var(--accent-cool), var(--border) 38%);
+}
+
 .subtitle {
   margin: 0.8rem 0 0;
   color: color-mix(in srgb, var(--ink-main) 78%, var(--ink-muted) 22%);
   max-width: 60ch;
   font-size: 1rem;
+}
+
+.subtitle a {
+  color: color-mix(in srgb, var(--ink-main), var(--accent-cool) 24%);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--border), var(--accent-cool) 24%);
+}
+
+.subtitle a:hover,
+.subtitle a:focus-visible {
+  color: var(--btn-active-ink);
+  border-bottom-color: var(--btn-active-border);
 }
 
 .workspace {
@@ -392,6 +467,129 @@ h1 {
     minmax(20rem, calc(((100 - var(--workspace-left)) * 1%) - 0.5rem));
   gap: 1rem;
   align-items: start;
+}
+
+.app-footer {
+  margin-top: auto;
+  padding: 0.95rem 0.15rem 0;
+}
+
+.app-footer p {
+  margin: 0;
+  color: color-mix(in srgb, var(--ink-main) 76%, var(--ink-muted) 24%);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.app-footer a {
+  color: color-mix(in srgb, var(--ink-main), var(--accent-cool) 28%);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--border), var(--accent-cool) 28%);
+}
+
+.app-footer a:hover,
+.app-footer a:focus-visible {
+  color: var(--btn-active-ink);
+  border-bottom-color: var(--btn-active-border);
+}
+
+.app-footer-separator {
+  color: color-mix(in srgb, var(--ink-muted), var(--ink-main) 28%);
+}
+
+.app-footer-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.app-footer-github svg {
+  width: 0.82rem;
+  height: 0.82rem;
+  flex: 0 0 auto;
+}
+
+body.is-focus-mode .hero {
+  display: none;
+}
+
+body.is-focus-mode .top-toolbar {
+  display: none;
+}
+
+body.is-focus-mode .app-footer {
+  display: none;
+}
+
+body.is-focus-mode .app-shell {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+body.is-focus-mode .workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: stretch;
+}
+
+body.is-focus-mode .controls-panel,
+body.is-focus-mode .preview-panel {
+  height: 100%;
+}
+
+body.is-focus-mode .controls-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+body.is-focus-mode .config-details {
+  display: none;
+}
+
+body.is-focus-mode .controls-panel .source-field {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-bottom: 0;
+}
+
+body.is-focus-mode .controls-panel .source-field > span {
+  display: none;
+}
+
+body.is-focus-mode .controls-panel .source-field {
+  gap: 0;
+}
+
+body.is-focus-mode #diagramSource {
+  height: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+body.is-focus-mode .preview-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+body.is-focus-mode .preview-status-row {
+  display: none;
+}
+
+body.is-focus-mode .render-box {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .split-handle {
@@ -804,12 +1002,90 @@ textarea {
   border-color: color-mix(in srgb, var(--accent), var(--border) 38%);
 }
 
+.focus-mode-toast {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 70;
+  transform: translate(-50%, calc(-50% + 8px)) scale(0.98);
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 17.5rem;
+  border: 1px solid var(--btn-active-border);
+  border-radius: 18px;
+  padding: 1rem 1.25rem 0.95rem;
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--btn-active-bg), var(--bg-card) 22%),
+      color-mix(in srgb, var(--bg-card-strong), var(--btn-active-bg) 42%)
+    );
+  color: var(--btn-active-ink);
+  box-shadow:
+    var(--shadow),
+    0 0 0 1px color-mix(in srgb, var(--btn-active-border), transparent 35%) inset;
+  transition: opacity 160ms ease, transform 160ms ease;
+  text-align: center;
+}
+
+.focus-mode-toast.is-visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.focus-mode-toast-key {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 1.45rem;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: 0.14em;
+}
+
+.focus-mode-toast-label {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.08rem;
+  line-height: 1.2;
+  color: color-mix(in srgb, var(--btn-active-ink), var(--ink-main) 16%);
+}
+
+.focus-exit-btn {
+  display: none;
+  position: fixed;
+  top: max(0.85rem, env(safe-area-inset-top));
+  right: max(0.85rem, env(safe-area-inset-right));
+  z-index: 1002;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: linear-gradient(165deg, var(--bg-card), var(--bg-card-strong));
+  color: var(--ink-main);
+  box-shadow: var(--shadow);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.03em;
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+}
+
+.focus-exit-btn:hover {
+  transform: translateY(-1px);
+}
+
+.focus-exit-btn:active {
+  transform: translateY(0);
+}
+
 .render-box {
   margin-top: 0;
-  background: var(--bg-render);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 0.7rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
   overflow: auto;
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -825,12 +1101,12 @@ textarea {
 }
 
 .render-box::before {
-  content: "";
+  content: none;
   position: absolute;
   inset: 0;
-  border-radius: 14px;
+  border-radius: 0;
   pointer-events: none;
-  box-shadow: inset 0 0 0 1px rgba(141, 233, 105, 0.08);
+  box-shadow: none;
 }
 
 .render-box::after {
@@ -874,10 +1150,10 @@ textarea {
   height: auto;
   margin: 0 auto;
   object-fit: contain;
-  background: var(--preview-surface-bg);
-  border: 1px solid color-mix(in srgb, var(--border), white 12%);
-  border-radius: 10px;
-  padding: 0.35rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
 }
 
 .render-box iframe {
@@ -1211,6 +1487,10 @@ textarea {
     display: flex;
   }
 
+  body.is-focus-mode .focus-exit-btn {
+    display: inline-flex;
+  }
+
   .icon-menus .menu {
     width: 100%;
   }
@@ -1285,6 +1565,16 @@ textarea {
     align-items: start;
   }
 
+  body.is-focus-mode .app-shell {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  body.is-focus-mode .workspace {
+    min-height: 0;
+    align-items: stretch;
+  }
+
   .split-handle {
     display: none;
   }
@@ -1313,6 +1603,14 @@ textarea {
     right: 0.8rem;
     bottom: 0.8rem;
     min-width: calc(100vw - 1.6rem);
+  }
+
+  .focus-mode-toast {
+    max-width: calc(100vw - 1.2rem);
+    text-align: center;
+    min-width: 0;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 }
 

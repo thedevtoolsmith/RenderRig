@@ -14,7 +14,6 @@ if (!detectorApi) {
 
 const {
   PREVIEW_FORMAT,
-  MARKDOWN_IMAGE_FORMAT,
   TEXT_PLAIN_HEADERS,
   DIAGRAM_CATALOG,
   DIAGRAM_SAMPLES,
@@ -66,8 +65,10 @@ const dom = {
   exportFormatButtons: document.getElementById("exportFormatButtons"),
   copyFormatButtons: document.getElementById("copyFormatButtons"),
   editableLinkBtn: document.getElementById("editableLinkBtn"),
-  markdownBtn: document.getElementById("markdownBtn"),
+  imageLinkBtn: document.getElementById("imageLinkBtn"),
   actionCallout: document.getElementById("actionCallout"),
+  focusModeToast: document.getElementById("focusModeToast"),
+  focusModeExitBtn: document.getElementById("focusModeExitBtn"),
   commandPalette: document.getElementById("commandPalette"),
   commandPaletteInput: document.getElementById("commandPaletteInput"),
   commandPaletteList: document.getElementById("commandPaletteList"),
@@ -77,6 +78,7 @@ const dom = {
   mobileActionSheetTitle: document.getElementById("mobileActionSheetTitle"),
   mobileActionSheetClose: document.getElementById("mobileActionSheetClose"),
   mobileActionSheetCloseElements: Array.from(document.querySelectorAll("[data-mobile-sheet-close]")),
+  footerEmoji: document.getElementById("footerEmoji"),
 };
 
 const state = {
@@ -103,11 +105,14 @@ const state = {
   mobileActionSheetMode: "",
   recentCommandIds: [],
   requestTimeoutMs: 5000,
+  focusMode: false,
 };
 
 let autoRenderTimer = null;
 let actionCalloutTimer = null;
 let actionCalloutHideTimer = null;
+let focusModeToastTimer = null;
+let focusModeToastHideTimer = null;
 let renderStatusTimer = null;
 let controlsPanelObserver = null;
 let topMenuListenersAttached = false;
@@ -115,6 +120,8 @@ let visualViewportListenersAttached = false;
 let tooltipRulerEl = null;
 let splitResizeActive = false;
 let splitPointerId = null;
+let focusModeListenersAttached = false;
+let footerEmojiShuffleTimer = null;
 const COMPACT_UI_MEDIA_QUERY = "(max-width: 1200px), (hover: none), (pointer: coarse)";
 const AUTO_DETECT_CONFIDENCE_THRESHOLD = 0.82;
 const AUTO_DETECT_VALIDATION_CANDIDATES = 3;
@@ -125,6 +132,7 @@ const MENU_SHORTCUTS = Object.freeze({
   o: "debug",
 });
 const MENU_SHORTCUT_CONFIG = Object.freeze({
+  focus: { label: "Focus Mode", key: ";" },
   copy: { label: "Copy", key: "j" },
   export: { label: "Download", key: "h" },
   theme: { label: "Theme", key: "g" },
@@ -135,9 +143,13 @@ const PANEL_MIN_WIDTH_PERCENT = 28;
 const PANEL_MAX_WIDTH_PERCENT = 72;
 const EDGE_RESIZE_THRESHOLD_PX = 10;
 const PREFS_STORAGE_PREFIX = "renderrig-ui-prefs-v1";
+const COPY_IMAGE_LINK_FORMAT = "svg";
 const DEFAULT_REQUEST_TIMEOUT_MS = 5000;
 const MIN_REQUEST_TIMEOUT_MS = 1000;
 const MAX_REQUEST_TIMEOUT_MS = 120000;
+const FOCUS_MODE_TOAST_SHOW_MS = 2200;
+const FOOTER_EMOJI_OPTIONS = Object.freeze(["🤖", "💚", "☕", "🛠️", "⌨️", "✨", "🧠", "⚙️"]);
+const FOOTER_EMOJI_SHUFFLE_MS = 1400;
 const IS_APPLE_PLATFORM = (() => {
   const platform = navigator.userAgentData?.platform || navigator.platform || "";
   return /mac|iphone|ipad|ipod/i.test(platform);
@@ -160,7 +172,41 @@ function getShortcutDisplay(key) {
 }
 
 function getShortcutAria(key) {
+  if (key === ";") {
+    return `${IS_APPLE_PLATFORM ? "Meta" : "Control"}+Semicolon`;
+  }
   return `${IS_APPLE_PLATFORM ? "Meta" : "Control"}+${key.toUpperCase()}`;
+}
+
+function isFocusShortcut(event) {
+  if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) {
+    return false;
+  }
+  return event.key === ";" || event.code === "Semicolon";
+}
+
+function startFooterEmojiShuffle() {
+  if (!dom.footerEmoji) {
+    return;
+  }
+
+  let previousEmoji = String(dom.footerEmoji.textContent || "").trim();
+  const pickNextEmoji = () => {
+    const candidates = FOOTER_EMOJI_OPTIONS.filter((emoji) => emoji !== previousEmoji);
+    const pool = candidates.length ? candidates : FOOTER_EMOJI_OPTIONS;
+    const nextEmoji = pool[Math.floor(Math.random() * pool.length)] || "🤖";
+    dom.footerEmoji.textContent = nextEmoji;
+    previousEmoji = nextEmoji;
+  };
+
+  pickNextEmoji();
+  window.clearInterval(footerEmojiShuffleTimer);
+  footerEmojiShuffleTimer = window.setInterval(() => {
+    if (document.hidden) {
+      return;
+    }
+    pickNextEmoji();
+  }, FOOTER_EMOJI_SHUFFLE_MS);
 }
 
 function clampRequestTimeoutMs(value) {
@@ -242,6 +288,8 @@ function applyMenuShortcutTooltips() {
     trigger.removeAttribute("title");
     trigger.setAttribute("aria-keyshortcuts", getShortcutAria(config.key));
     if (menuName === "command") {
+      trigger.setAttribute("aria-label", config.label);
+    } else if (menuName === "focus") {
       trigger.setAttribute("aria-label", config.label);
     } else {
       trigger.setAttribute("aria-label", `${config.label} menu`);
@@ -377,6 +425,49 @@ function getMenuByName(menuName) {
   return dom.menus.find((menu) => menu.dataset.menu === menuName) || null;
 }
 
+function updateFocusModeMenuUi() {
+  const focusMenu = getMenuByName("focus");
+  if (!focusMenu) {
+    return;
+  }
+  focusMenu.classList.toggle("is-toggled", Boolean(state.focusMode));
+  const trigger = focusMenu.querySelector(".menu-trigger");
+  if (trigger instanceof HTMLElement) {
+    trigger.setAttribute("aria-pressed", String(Boolean(state.focusMode)));
+  }
+}
+
+function setFocusMode(enabled, options = {}) {
+  const { focusSource = false } = options;
+  const nextValue = Boolean(enabled);
+  if (state.focusMode === nextValue) {
+    return;
+  }
+  state.focusMode = nextValue;
+  document.body.classList.toggle("is-focus-mode", nextValue);
+  updateFocusModeMenuUi();
+  if (nextValue) {
+    showFocusModeToast();
+  } else {
+    hideFocusModeToast(true);
+  }
+  window.requestAnimationFrame(() => {
+    syncRenderBoxHeight();
+    updateSourceScrollState();
+    updateRenderScrollState();
+    positionOpenMenus();
+    positionResponsiveToolbarToVisibleViewport();
+    positionMenuTooltips();
+    if (focusSource) {
+      dom.diagramSource?.focus();
+    }
+  });
+}
+
+function toggleFocusMode(options = {}) {
+  setFocusMode(!state.focusMode, options);
+}
+
 function collectOpenMenuNames() {
   return dom.menus
     .filter((menu) => menu.classList.contains("is-open"))
@@ -471,6 +562,19 @@ function normalizeServerUrl(urlText) {
   return urlText.replace(/\/+$/, "").trim();
 }
 
+function getDefaultKrokiServerUrl() {
+  try {
+    const currentUrl = new URL(window.location.href);
+    const isHttpOrigin = currentUrl.protocol === "http:" || currentUrl.protocol === "https:";
+    if (isHttpOrigin && currentUrl.hostname) {
+      return `${currentUrl.origin.replace(/\/+$/, "")}/kroki`;
+    }
+  } catch {
+    // Fall through to static default.
+  }
+  return "https://kroki.io";
+}
+
 function getCurrentAppUrl() {
   try {
     const current = new URL(window.location.href);
@@ -535,6 +639,48 @@ function showActionCallout(kind, message) {
       }
     }, 180);
   }, 2700);
+}
+
+function hideFocusModeToast(immediate = false) {
+  if (!dom.focusModeToast) {
+    return;
+  }
+
+  window.clearTimeout(focusModeToastTimer);
+  window.clearTimeout(focusModeToastHideTimer);
+
+  if (immediate) {
+    dom.focusModeToast.classList.remove("is-visible");
+    dom.focusModeToast.hidden = true;
+    return;
+  }
+
+  dom.focusModeToast.classList.remove("is-visible");
+  focusModeToastHideTimer = window.setTimeout(() => {
+    if (!dom.focusModeToast.classList.contains("is-visible")) {
+      dom.focusModeToast.hidden = true;
+    }
+  }, 180);
+}
+
+function showFocusModeToast() {
+  if (!dom.focusModeToast) {
+    return;
+  }
+
+  window.clearTimeout(focusModeToastTimer);
+  window.clearTimeout(focusModeToastHideTimer);
+
+  dom.focusModeToast.hidden = false;
+  dom.focusModeToast.classList.remove("is-visible");
+
+  window.requestAnimationFrame(() => {
+    dom.focusModeToast.classList.add("is-visible");
+  });
+
+  focusModeToastTimer = window.setTimeout(() => {
+    hideFocusModeToast(false);
+  }, FOCUS_MODE_TOAST_SHOW_MS);
 }
 
 function updateRenderScrollState() {
@@ -780,7 +926,7 @@ function closeMobileActionSheet(persist = true) {
 
 function buildMobileActionSheetButtons(mode) {
   const type = getActionDiagramType();
-  const formats = getSupportedFormatsForDiagram(type);
+  const formats = mode === "copy" ? getCopySupportedFormatsForDiagram(type) : getSupportedFormatsForDiagram(type);
   const fragment = document.createDocumentFragment();
 
   if (mode === "copy") {
@@ -797,6 +943,19 @@ function buildMobileActionSheetButtons(mode) {
       fragment.appendChild(button);
     });
 
+    if (!dom.imageLinkBtn.hidden) {
+      const imageLinkButton = document.createElement("button");
+      imageLinkButton.type = "button";
+      imageLinkButton.className = "btn btn-ghost";
+      imageLinkButton.textContent = "Copy image link";
+      imageLinkButton.disabled = dom.imageLinkBtn.disabled;
+      imageLinkButton.addEventListener("click", () => {
+        copyRenderedImageLink();
+        closeMobileActionSheet();
+      });
+      fragment.appendChild(imageLinkButton);
+    }
+
     const linkButton = document.createElement("button");
     linkButton.type = "button";
     linkButton.className = "btn btn-ghost";
@@ -807,23 +966,12 @@ function buildMobileActionSheetButtons(mode) {
       closeMobileActionSheet();
     });
     fragment.appendChild(linkButton);
-
-    const markdownButton = document.createElement("button");
-    markdownButton.type = "button";
-    markdownButton.className = "btn btn-ghost";
-    markdownButton.textContent = "Copy markdown";
-    markdownButton.disabled = dom.markdownBtn.disabled;
-    markdownButton.addEventListener("click", () => {
-      exportMarkdown();
-      closeMobileActionSheet();
-    });
-    fragment.appendChild(markdownButton);
   } else if (mode === "export") {
     formats.forEach((format) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "btn btn-ghost";
-      button.textContent = `Export ${getFormatDisplayName(format)}`;
+      button.textContent = `Download ${getFormatDisplayName(format)}`;
       button.disabled = !isFormatActionEnabled("export", format);
       button.addEventListener("click", () => {
         exportDiagram(format);
@@ -841,7 +989,7 @@ function openMobileActionSheet(mode) {
     return;
   }
   state.mobileActionSheetMode = mode;
-  dom.mobileActionSheetTitle.textContent = mode === "copy" ? "Copy Actions" : "Export Actions";
+  dom.mobileActionSheetTitle.textContent = mode === "copy" ? "Copy Actions" : "Download Actions";
   dom.mobileActionSheetBody.replaceChildren(buildMobileActionSheetButtons(mode));
   dom.mobileActionSheet.hidden = false;
   persistUiPrefs();
@@ -968,6 +1116,13 @@ function runMenuShortcut(menuName) {
     openCommandPalette();
     return;
   }
+  if (menuName === "focus") {
+    closeAllMenus();
+    closeToolbarDropdown();
+    closeMobileActionSheet();
+    toggleFocusMode();
+    return;
+  }
 
   const menu = getMenuByName(menuName);
   if (!menu) {
@@ -1061,6 +1216,14 @@ function setupTopMenuInteractions() {
         persistUiPrefs();
         return;
       }
+      if (menuName === "focus") {
+        closeAllMenus();
+        closeToolbarDropdown();
+        closeMobileActionSheet();
+        toggleFocusMode();
+        persistUiPrefs();
+        return;
+      }
       if (isCompactToolbarLayout() && (menuName === "copy" || menuName === "export")) {
         closeAllMenus(null, false);
         closeToolbarDropdown();
@@ -1094,10 +1257,10 @@ function setupTopMenuInteractions() {
         return;
       }
       const menuName = menu.dataset.menu || "";
-      if (menuName === "command") {
+      if (menuName === "command" || menuName === "focus") {
         if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          runMenuShortcut("command");
+          runMenuShortcut(menuName);
         }
         return;
       }
@@ -1224,6 +1387,37 @@ function setupTopMenuInteractions() {
   });
 }
 
+function setupFocusModeInteractions() {
+  if (focusModeListenersAttached) {
+    return;
+  }
+  focusModeListenersAttached = true;
+
+  document.addEventListener("keydown", (event) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+
+    if (isFocusShortcut(event)) {
+      event.preventDefault();
+      runMenuShortcut("focus");
+      return;
+    }
+
+    if (event.key === "Escape" && state.focusMode) {
+      event.preventDefault();
+      setFocusMode(false, { focusSource: true });
+    }
+  });
+
+  document.addEventListener("pointerdown", () => {
+    if (!dom.focusModeToast || dom.focusModeToast.hidden) {
+      return;
+    }
+    hideFocusModeToast(false);
+  });
+}
+
 function getThemeFamilyLabel(family) {
   const button = dom.themeFamilyButtons.find((item) => item.dataset.themeFamily === family);
   if (button) {
@@ -1242,9 +1436,10 @@ function getCommandPaletteCommands() {
   );
 
   const actionType = getActionDiagramType();
-  const supportedFormats = getSupportedFormatsForDiagram(actionType);
+  const exportFormats = getSupportedFormatsForDiagram(actionType);
+  const copyFormats = getCopySupportedFormatsForDiagram(actionType);
   const copyCommands = [];
-  const exportCommands = [];
+  const downloadCommands = [];
   const themeCommands = [];
   const diagramCommands = [];
   const focusServerUrlCommand = {
@@ -1262,8 +1457,17 @@ function getCommandPaletteCommands() {
       }
     },
   };
+  const focusModeCommand = {
+    id: "toggle-focus-mode",
+    group: "View",
+    label: state.focusMode ? "Exit Focus Mode" : "Enter Focus Mode",
+    keywords: "focus mode toggle fullscreen zen",
+    run: () => {
+      toggleFocusMode();
+    },
+  };
 
-  supportedFormats.forEach((format) => {
+  copyFormats.forEach((format) => {
     copyCommands.push({
       id: `copy-${format}`,
       group: "Copy",
@@ -1275,6 +1479,17 @@ function getCommandPaletteCommands() {
     });
   });
 
+  if (!dom.imageLinkBtn.hidden && !dom.imageLinkBtn.disabled) {
+    copyCommands.push({
+      id: "copy-image-link",
+      group: "Copy",
+      label: "Copy image link",
+      keywords: "copy image link svg",
+      run: () => {
+        copyRenderedImageLink();
+      },
+    });
+  }
   if (!dom.editableLinkBtn.disabled) {
     copyCommands.push({
       id: "copy-editable-link",
@@ -1286,23 +1501,12 @@ function getCommandPaletteCommands() {
       },
     });
   }
-  if (!dom.markdownBtn.disabled) {
-    copyCommands.push({
-      id: "copy-markdown",
-      group: "Copy",
-      label: "Copy markdown snippet",
-      keywords: "copy markdown",
-      run: () => {
-        exportMarkdown();
-      },
-    });
-  }
 
-  supportedFormats.forEach((format) => {
-    exportCommands.push({
+  exportFormats.forEach((format) => {
+    downloadCommands.push({
       id: `export-${format}`,
-      group: "Export",
-      label: `Export ${getFormatDisplayName(format)}`,
+      group: "Download",
+      label: `Download ${getFormatDisplayName(format)}`,
       keywords: `export download ${format}`,
       run: () => {
         exportDiagram(format);
@@ -1368,8 +1572,9 @@ function getCommandPaletteCommands() {
 
   const orderedCommands = [
     focusServerUrlCommand,
+    focusModeCommand,
     ...copyCommands,
-    ...exportCommands,
+    ...downloadCommands,
     ...themeCommands,
     ...diagramCommands,
   ];
@@ -1382,7 +1587,15 @@ function getCommandPaletteCommands() {
       group: "Recent",
     }));
 
-  return [...recentCommands, focusServerUrlCommand, ...copyCommands, ...exportCommands, ...themeCommands, ...diagramCommands];
+  return [
+    ...recentCommands,
+    focusServerUrlCommand,
+    focusModeCommand,
+    ...copyCommands,
+    ...downloadCommands,
+    ...themeCommands,
+    ...diagramCommands,
+  ];
 }
 
 function renderCommandPaletteResults(filteredCommands) {
@@ -2024,6 +2237,10 @@ function getSupportedFormatsForDiagram(diagramType) {
   return DIAGRAM_FORMAT_SUPPORT[diagramType] || [];
 }
 
+function getCopySupportedFormatsForDiagram(diagramType) {
+  return getSupportedFormatsForDiagram(diagramType).filter((format) => format !== "pdf");
+}
+
 function supportsDiagramFormat(diagramType, format) {
   return getSupportedFormatsForDiagram(diagramType).includes(format);
 }
@@ -2067,7 +2284,7 @@ function createFormatActionButton(action, format) {
 
   const formatName = getFormatDisplayName(format);
   if (action === "export") {
-    button.textContent = `Export ${formatName}`;
+    button.textContent = `Download ${formatName}`;
     button.title = `Download diagram as ${formatName}`;
     button.addEventListener("click", () => {
       exportDiagram(format);
@@ -2088,18 +2305,22 @@ function rebuildFormatActionButtons() {
     return;
   }
 
-  const supportedFormats = getSupportedFormatsForDiagram(getMenuDiagramType());
+  const diagramType = getMenuDiagramType();
+  const exportFormats = getSupportedFormatsForDiagram(diagramType);
+  const copyFormats = getCopySupportedFormatsForDiagram(diagramType);
   state.exportActionButtons = [];
   state.copyActionButtons = [];
 
   dom.exportFormatButtons.replaceChildren();
   dom.copyFormatButtons.replaceChildren();
 
-  supportedFormats.forEach((format) => {
+  exportFormats.forEach((format) => {
     const exportButton = createFormatActionButton("export", format);
     dom.exportFormatButtons.appendChild(exportButton);
     state.exportActionButtons.push(exportButton);
+  });
 
+  copyFormats.forEach((format) => {
     const copyButton = createFormatActionButton("copy", format);
     dom.copyFormatButtons.appendChild(copyButton);
     state.copyActionButtons.push(copyButton);
@@ -2108,9 +2329,10 @@ function rebuildFormatActionButtons() {
   positionOpenMenus();
 }
 
-function setExportButtonsEnabled(enabled) {
+function setActionButtonsEnabled(enabled) {
   const diagramType = getActionDiagramType();
-  const supportsMarkdownFormat = supportsDiagramFormat(diagramType, MARKDOWN_IMAGE_FORMAT);
+  const supportsImageLinkFormat = supportsDiagramFormat(diagramType, COPY_IMAGE_LINK_FORMAT);
+  const hasServerAndSource = Boolean(normalizeServerUrl(dom.serverUrl.value || "") && dom.diagramSource.value.trim());
   state.exportActionButtons.forEach((button) => {
     const format = button.dataset.format || "";
     button.disabled = !enabled || !supportsDiagramFormat(diagramType, format);
@@ -2120,7 +2342,8 @@ function setExportButtonsEnabled(enabled) {
     button.disabled = !enabled || !supportsDiagramFormat(diagramType, format);
   });
   dom.editableLinkBtn.disabled = !enabled;
-  dom.markdownBtn.disabled = !enabled || !supportsMarkdownFormat;
+  dom.imageLinkBtn.hidden = !diagramType || !supportsImageLinkFormat;
+  dom.imageLinkBtn.disabled = !diagramType || !supportsImageLinkFormat || !hasServerAndSource;
 }
 
 function populateDiagramTypeOptions() {
@@ -2202,7 +2425,7 @@ function applySampleForDiagramType(diagramType, options = {}) {
 
 function getThemeSelection(themeId) {
   const normalized = normalizeThemeId(themeId, DEFAULT_THEME_ID);
-  return parseThemeId(normalized) || { family: "renderrig-classic", mode: "dark" };
+  return parseThemeId(normalized) || { family: "renderrig-classic", mode: "light" };
 }
 
 function applyTheme(themeId, persist = true) {
@@ -2357,11 +2580,12 @@ async function encodeDiagramForGet(source) {
   }
 
   const compressor = new CompressionStream("deflate");
+  // Start reading before writing to avoid backpressure deadlocks on larger inputs.
+  const compressedPromise = new Response(compressor.readable).arrayBuffer();
   const writer = compressor.writable.getWriter();
   await writer.write(new TextEncoder().encode(source));
   await writer.close();
-
-  const compressed = await new Response(compressor.readable).arrayBuffer();
+  const compressed = await compressedPromise;
   return toBase64Url(new Uint8Array(compressed));
 }
 
@@ -2568,7 +2792,7 @@ function handleRenderTimeout(renderToken) {
 
 function resetRenderedState() {
   cleanupObjectUrl();
-  setExportButtonsEnabled(false);
+  setActionButtonsEnabled(false);
   updateRenderScrollState();
 }
 
@@ -2934,7 +3158,7 @@ async function renderDiagram() {
 
   if (prefetchedAutoBlob) {
     renderPreviewFromBlob(prefetchedAutoBlob);
-    setExportButtonsEnabled(true);
+    setActionButtonsEnabled(true);
     setEndpointMeta(prefetchedEndpoint || endpoint, prefetchedRequestType || `POST /{type}/${previewFormat}`, prefetchedRequestDetails || {
       method: "POST",
       url: prefetchedEndpoint || endpoint,
@@ -2961,7 +3185,7 @@ async function renderDiagram() {
     }
 
     renderPreviewFromBlob(blob);
-    setExportButtonsEnabled(true);
+    setActionButtonsEnabled(true);
     completeRenderStatus("ok", renderToken);
     updateStatus("ok", "Preview rendered (POST)");
     return;
@@ -3013,7 +3237,7 @@ async function renderDiagram() {
       }
 
       renderPreviewFromBlob(fallbackBlob);
-      setExportButtonsEnabled(true);
+      setActionButtonsEnabled(true);
       completeRenderStatus("ok", renderToken);
       updateStatus("ok", "Preview rendered (GET fallback)");
       return;
@@ -3130,7 +3354,7 @@ async function exportEditableLink() {
   }
 }
 
-async function exportMarkdown() {
+async function copyRenderedImageLink() {
   const server = normalizeServerUrl(dom.serverUrl.value || "");
   const type = getActionDiagramType();
   const source = dom.diagramSource.value;
@@ -3142,43 +3366,34 @@ async function exportMarkdown() {
   }
 
   if (!server || !source.trim()) {
-    updateStatus("error", "Cannot export markdown without server URL and diagram source");
-    showActionCallout("error", "Cannot export markdown without server URL and diagram source");
+    updateStatus("error", "Cannot copy image link without server URL and diagram source");
+    showActionCallout("error", "Cannot copy image link without server URL and diagram source");
     return;
   }
-  if (!supportsDiagramFormat(type, MARKDOWN_IMAGE_FORMAT)) {
-    updateStatus("error", `${type} does not support ${MARKDOWN_IMAGE_FORMAT.toUpperCase()}`);
-    showActionCallout("error", `${type} does not support ${MARKDOWN_IMAGE_FORMAT.toUpperCase()}`);
+  if (!supportsDiagramFormat(type, COPY_IMAGE_LINK_FORMAT)) {
+    updateStatus("error", `${type} does not support ${COPY_IMAGE_LINK_FORMAT.toUpperCase()}`);
+    showActionCallout("error", `${type} does not support ${COPY_IMAGE_LINK_FORMAT.toUpperCase()}`);
     return;
   }
 
-  let editableLink = "";
-  try {
-    editableLink = buildEditableLink();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    updateStatus("error", message);
-    showActionCallout("error", message);
-    return;
-  }
+  updateStatus("loading", "Building image link...");
+  showActionCallout("loading", "Building image link...");
 
   let imageUrl = "";
   try {
-    imageUrl = await buildGetRenderUrl(server, type, MARKDOWN_IMAGE_FORMAT, source);
-    setEndpointMeta(imageUrl, "GET /{type}/png/{encoded} (markdown image)", {
+    imageUrl = await buildGetRenderUrl(server, type, COPY_IMAGE_LINK_FORMAT, source);
+    setEndpointMeta(imageUrl, "GET /{type}/svg/{encoded} (image link)", {
       method: "GET",
       url: imageUrl,
       headers: {},
       body: "",
     });
   } catch {
-    updateStatus("error", "Could not build markdown image URL in this browser");
-    showActionCallout("error", "Could not build markdown image URL in this browser");
+    updateStatus("error", "Could not build image link URL in this browser");
+    showActionCallout("error", "Could not build image link URL in this browser");
     return;
   }
-
-  const markdown = `[![diagram](${imageUrl})](${editableLink})`;
-  await copyToClipboard(markdown, "Markdown content copied");
+  await copyToClipboard(imageUrl, "Image link copied");
 }
 
 dom.debugModeBtn.addEventListener("click", () => {
@@ -3212,9 +3427,17 @@ dom.editableLinkBtn.addEventListener("click", () => {
   exportEditableLink();
 });
 
-dom.markdownBtn.addEventListener("click", () => {
-  exportMarkdown();
+dom.imageLinkBtn.addEventListener("click", () => {
+  copyRenderedImageLink();
 });
+
+if (dom.focusModeExitBtn) {
+  dom.focusModeExitBtn.addEventListener("click", () => {
+    if (state.focusMode) {
+      setFocusMode(false);
+    }
+  });
+}
 
 dom.renderBox.addEventListener("scroll", () => {
   updateRenderScrollState();
@@ -3231,7 +3454,7 @@ dom.diagramType.addEventListener("change", () => {
   if (selectedType === AUTO_DIAGRAM_TYPE_ID) {
     updateResolvedDiagramType("", null);
     rebuildFormatActionButtons();
-    setExportButtonsEnabled(false);
+    setActionButtonsEnabled(false);
     saveStateToHash();
     scheduleAutoRender();
     return;
@@ -3240,7 +3463,7 @@ dom.diagramType.addEventListener("change", () => {
   updateResolvedDiagramType(selectedType, null);
   applySampleForDiagramType(selectedType);
   rebuildFormatActionButtons();
-  setExportButtonsEnabled(false);
+  setActionButtonsEnabled(false);
 });
 
 dom.themeFamilyButtons.forEach((button) => {
@@ -3266,7 +3489,7 @@ dom.themeModeButtons.forEach((button) => {
     if (element === dom.diagramSource && dom.diagramType.value === AUTO_DIAGRAM_TYPE_ID) {
       updateResolvedDiagramType("", null);
       rebuildFormatActionButtons();
-      setExportButtonsEnabled(false);
+      setActionButtonsEnabled(false);
     }
     saveStateToHash();
     if (element === dom.diagramSource) {
@@ -3279,7 +3502,7 @@ dom.themeModeButtons.forEach((button) => {
     if (element === dom.diagramSource && dom.diagramType.value === AUTO_DIAGRAM_TYPE_ID) {
       updateResolvedDiagramType("", null);
       rebuildFormatActionButtons();
-      setExportButtonsEnabled(false);
+      setActionButtonsEnabled(false);
     }
     saveStateToHash();
     if (element === dom.diagramSource) {
@@ -3294,9 +3517,10 @@ function init() {
   setupDiagramTypeDropdownInteractions();
   setupSplitPaneInteractions();
   setupCommandPaletteInteractions();
+  setupFocusModeInteractions();
   applyMenuShortcutTooltips();
   populateDiagramTypeOptions();
-  dom.serverUrl.value = DEFAULT_SERVER_URL;
+  dom.serverUrl.value = getDefaultKrokiServerUrl();
   dom.diagramType.value = DEFAULT_DIAGRAM_TYPE;
   dom.diagramSource.value = "";
   state.requestTimeoutMs = clampRequestTimeoutMs(state.requestTimeoutMs);
@@ -3324,6 +3548,7 @@ function init() {
   rebuildFormatActionButtons();
   applyTheme(state.themeId, false);
   setDebugMode(state.debugMode, false);
+  updateFocusModeMenuUi();
   setIdleRenderStatus();
   updateSourceScrollState();
   syncRenderBoxHeight();
@@ -3332,6 +3557,7 @@ function init() {
   applyUiPrefs();
   positionOpenMenus();
   positionMenuTooltips();
+  startFooterEmojiShuffle();
 
   if ("ResizeObserver" in window && dom.controlsPanel) {
     controlsPanelObserver = new ResizeObserver(() => {
@@ -3375,6 +3601,10 @@ window.addEventListener("beforeunload", () => {
   stopRenderStatusTimer();
   window.clearTimeout(actionCalloutTimer);
   window.clearTimeout(actionCalloutHideTimer);
+  window.clearTimeout(focusModeToastTimer);
+  window.clearTimeout(focusModeToastHideTimer);
+  window.clearInterval(footerEmojiShuffleTimer);
+  footerEmojiShuffleTimer = null;
   if (tooltipRulerEl && document.body.contains(tooltipRulerEl)) {
     tooltipRulerEl.remove();
   }

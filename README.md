@@ -2,6 +2,8 @@
 
 RenderRig is a vanilla HTML/CSS/JavaScript frontend for editing and rendering diagrams with [Kroki](https://kroki.io/).
 
+It serves app assets locally (including fonts and favicon) and can target either a local Kroki backend (recommended) or a remote Kroki instance.
+
 ## Current Capabilities
 
 - Auto-rendering diagram preview (no render button)
@@ -11,10 +13,15 @@ RenderRig is a vanilla HTML/CSS/JavaScript frontend for editing and rendering di
 - Dynamic export/copy formats based on selected diagram type support
 - Copy actions:
   - Copy diagram in supported formats
+  - Copy image link (direct SVG Kroki GET URL; shown only when the diagram type supports SVG)
   - Copy editable RenderRig link (`#state=...`)
-  - Copy markdown snippet
 - Export actions:
   - Export diagram in supported formats
+- Focus mode:
+  - `Cmd/Ctrl + ;` to enter/exit focus mode
+  - `Esc` exits focus mode
+  - Entry hint toast
+  - Mobile/tablet top-right focus exit button
 - Options menu:
   - Debug mode
   - Configurable request timeout (seconds)
@@ -39,14 +46,66 @@ RenderRig is a vanilla HTML/CSS/JavaScript frontend for editing and rendering di
 Uses `Cmd` on macOS and `Ctrl` on non-macOS:
 
 - `Cmd/Ctrl + K`: Command Palette
+- `Cmd/Ctrl + ;`: Focus mode
 - `Cmd/Ctrl + J`: Copy menu
 - `Cmd/Ctrl + H`: Download menu
 - `Cmd/Ctrl + G`: Theme menu
 - `Cmd/Ctrl + O`: Options menu
 
-## Run Locally
+## Default Kroki Server URL
 
-You can run it **without starting a server**:
+- When hosted over `http/https`, RenderRig auto-populates the Kroki server URL as:
+  - `<current-origin>/kroki`
+- If the page is opened without a valid web origin (for example `file://`), it falls back to:
+  - `https://kroki.io`
+
+## Run Entire Stack Locally (Frontend + Kroki)
+
+This repository now includes both Docker Compose and Podman Compose setups.
+
+### Docker Compose
+
+```bash
+docker compose up -d
+```
+
+Then open: [http://127.0.0.1:8080](http://127.0.0.1:8080)
+
+In RenderRig, set **Kroki Server URL** to:
+
+- `http://127.0.0.1:8080/kroki`
+
+Note: when opened via `http://127.0.0.1:8080`, RenderRig auto-fills this value by default.
+
+Stop:
+
+```bash
+docker compose down
+```
+
+### Podman Compose
+
+```bash
+podman-compose -f podman-compose.yml up -d
+```
+
+Then open: [http://127.0.0.1:8080](http://127.0.0.1:8080)
+
+In RenderRig, set **Kroki Server URL** to:
+
+- `http://127.0.0.1:8080/kroki`
+
+Note: when opened via `http://127.0.0.1:8080`, RenderRig auto-fills this value by default.
+
+Stop:
+
+```bash
+podman-compose -f podman-compose.yml down
+```
+
+## Run Frontend Only
+
+You can also run frontend only without containers:
 
 1. Open `frontend/index.html` directly in your browser.
 
@@ -59,19 +118,11 @@ python3 -m http.server 5173
 
 Then open: [http://127.0.0.1:5173](http://127.0.0.1:5173)
 
-## Kroki Backend
+## External Requests
 
-Use public Kroki:
-- `https://kroki.io`
+RenderRig no longer depends on CDN-hosted fonts/assets.
 
-Or run local Kroki (example with Docker):
-
-```bash
-docker run --rm -p 8000:8000 yuzutech/kroki
-```
-
-Then set server URL in RenderRig to:
-- `http://127.0.0.1:8000`
+The only runtime network requests made by the app are to the configured Kroki backend (render requests, GET fallback requests, and health/reachability checks).
 
 ## Repository Layout
 
@@ -79,6 +130,11 @@ Then set server URL in RenderRig to:
 .
 ├── AGENTS.md
 ├── README.md
+├── docker-compose.yml
+├── podman-compose.yml
+├── deploy/
+│   └── nginx/
+│       └── renderrig.local.conf
 └── frontend/
     ├── app.js
     ├── constants.js
