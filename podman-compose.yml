@@ -4,6 +4,7 @@ services:
     restart: unless-stopped
     expose:
       - "8000"
+    scale: ${KROKI_REPLICAS:-3}
 
   renderrig:
     image: docker.io/library/nginx:1.27-alpine

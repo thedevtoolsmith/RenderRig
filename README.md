@@ -66,6 +66,8 @@ Uses `Cmd` on macOS and `Ctrl` on non-macOS:
 
 This repository now includes both Docker Compose and Podman Compose setups.
 
+The local container stack starts multiple Kroki instances behind nginx. The frontend still talks to a single proxied URL (`/kroki`), and nginx load-balances those requests across however many Kroki replicas you configure.
+
 ### Docker Compose
 
 ```bash
@@ -79,6 +81,19 @@ In RenderRig, set **Kroki Server URL** to:
 - `http://127.0.0.1:8080/kroki`
 
 Note: when opened via `http://127.0.0.1:8080`, RenderRig auto-fills this value by default.
+
+Docker routing detail:
+
+- Frontend requests go to `http://127.0.0.1:8080/kroki`
+- nginx in the `renderrig` container distributes traffic across the `kroki` service replicas
+- nginx refreshes Docker DNS for `kroki` automatically
+- nginx will retry another Kroki container on upstream timeout / 502 / 503 / 504
+
+To change the number of Kroki containers, set `KROKI_REPLICAS` when starting the stack:
+
+```bash
+KROKI_REPLICAS=5 docker compose up -d
+```
 
 Stop:
 
@@ -99,6 +114,19 @@ In RenderRig, set **Kroki Server URL** to:
 - `http://127.0.0.1:8080/kroki`
 
 Note: when opened via `http://127.0.0.1:8080`, RenderRig auto-fills this value by default.
+
+Podman routing detail:
+
+- Frontend requests go to `http://127.0.0.1:8080/kroki`
+- nginx in the `renderrig` container distributes traffic across the `kroki` service replicas
+- nginx refreshes Docker DNS for `kroki` automatically
+- nginx will retry another Kroki container on upstream timeout / 502 / 503 / 504
+
+To change the number of Kroki containers, set `KROKI_REPLICAS` when starting the stack:
+
+```bash
+KROKI_REPLICAS=5 podman-compose -f podman-compose.yml up -d
+```
 
 Stop:
 
