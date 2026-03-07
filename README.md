@@ -11,6 +11,9 @@ It serves app assets locally (including fonts and favicon) and can target either
 - Custom theme-aware diagram type dropdown (includes `Auto Detect`)
 - Auto-detection with candidate validation
 - Dynamic export/copy formats based on selected diagram type support
+- Clipboard Kroki URL import:
+  - Auto-import on page load when source is empty or built-in sample text
+  - Command Palette action: `Import Kroki URL from clipboard`
 - Copy actions:
   - Copy diagram in supported formats
   - Copy image link (direct SVG Kroki GET URL; shown only when the diagram type supports SVG)
@@ -123,6 +126,12 @@ Then open: [http://127.0.0.1:5173](http://127.0.0.1:5173)
 RenderRig no longer depends on CDN-hosted fonts/assets.
 
 The only runtime network requests made by the app are to the configured Kroki backend (render requests, GET fallback requests, and health/reachability checks).
+
+## Clipboard Kroki URL Import Notes
+
+- Import supports standard Kroki GET render URLs and decodes source from the URL payload.
+- Clipboard import requires `navigator.clipboard.readText` support and browser deflate decode support (`DecompressionStream`).
+- If startup auto-import cannot read or decode clipboard contents, it fails silently by design.
 
 ## Repository Layout
 

@@ -611,6 +611,56 @@ body.is-focus-mode .render-box {
     var(--focus-ring);
 }
 
+.panel-resize-hint {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--workspace-left) * 1%);
+  transform: translateX(-50%);
+  margin: 0;
+  width: 0.8rem;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+  opacity: 0.5;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.panel-resize-hint::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 0.5rem;
+  transform: translateX(-50%);
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--ink-muted), var(--ink-main) 18%) 1.05px,
+    transparent 1.15px
+  );
+  background-position: center top;
+  background-repeat: repeat-y;
+  background-size: 0.5rem 0.56rem;
+}
+
+.workspace:hover .panel-resize-hint,
+body.is-split-resizing .panel-resize-hint {
+  opacity: 0.78;
+  transform: translateX(-50%) scaleX(1.02);
+}
+
+.workspace:hover .panel-resize-hint::before,
+body.is-split-resizing .panel-resize-hint::before {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent-cool), var(--ink-main) 22%) 1.1px,
+    transparent 1.2px
+  );
+}
+
 .controls-panel.is-edge-resize,
 .preview-panel.is-edge-resize {
   cursor: col-resize;
@@ -1576,6 +1626,10 @@ textarea {
   }
 
   .split-handle {
+    display: none;
+  }
+
+  .panel-resize-hint {
     display: none;
   }
 }

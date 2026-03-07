@@ -269,8 +269,8 @@ function setRequestTimeoutSeconds(seconds, options = {}) {
     saveStateToHash();
   }
   if (showFeedback) {
-    updateStatus("ok", `Request timeout set to ${getRequestTimeoutSeconds()} seconds.`);
-    showActionCallout("ok", `Request timeout set to ${getRequestTimeoutSeconds()} seconds.`);
+    updateStatus("ok", `Kroki request timeout set to ${getRequestTimeoutSeconds()} seconds.`);
+    showActionCallout("ok", `Kroki request timeout set to ${getRequestTimeoutSeconds()} seconds.`);
   }
   return true;
 }
@@ -605,6 +605,121 @@ function fromDataBase64(value) {
   const binary = atob(normalized);
   const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
   return new TextDecoder().decode(bytes);
+}
+
+function extractUrls(text) {
+  const source = typeof text === "string" ? text : "";
+  const matches = source.match(/https?:\/\/[^\s<>"'`]+/gi) || [];
+  const urls = [];
+  const seen = new Set();
+
+  matches.forEach((match) => {
+    const cleaned = match.trim().replace(/[)\]}.,;!?]+$/g, "");
+    if (!cleaned || seen.has(cleaned)) {
+      return;
+    }
+    seen.add(cleaned);
+    urls.push(cleaned);
+  });
+
+  return urls;
+}
+
+function parseKrokiRenderUrl(urlString) {
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(urlString);
+  } catch {
+    return null;
+  }
+
+  if (!/^https?:$/i.test(parsedUrl.protocol)) {
+    return null;
+  }
+
+  const segments = parsedUrl.pathname.replace(/\/+$/g, "").split("/").filter(Boolean);
+  if (segments.length < 3) {
+    return null;
+  }
+
+  let diagramTypeFromUrl = "";
+  let format = "";
+  let encoded = "";
+  try {
+    diagramTypeFromUrl = decodeURIComponent(segments[segments.length - 3]).toLowerCase();
+    format = decodeURIComponent(segments[segments.length - 2]).toLowerCase();
+    encoded = decodeURIComponent(segments[segments.length - 1]);
+  } catch {
+    return null;
+  }
+
+  if (!/^[a-z0-9][a-z0-9-]*$/i.test(diagramTypeFromUrl)) {
+    return null;
+  }
+  if (!/^[a-z0-9][a-z0-9-]*$/i.test(format)) {
+    return null;
+  }
+  if (!/^[A-Za-z0-9_-]+=*$/.test(encoded)) {
+    return null;
+  }
+
+  return {
+    diagramTypeFromUrl,
+    format,
+    encoded,
+    originalUrl: parsedUrl.toString(),
+  };
+}
+
+function fromBase64UrlToBytes(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized || !/^[A-Za-z0-9_-]+=*$/.test(normalized)) {
+    throw new Error("Encoded Kroki payload is not valid base64url");
+  }
+
+  const withoutPadding = normalized.replace(/=+$/g, "");
+  const padded = withoutPadding.replace(/-/g, "+").replace(/_/g, "/");
+  const withPadding = padded + "=".repeat((4 - (padded.length % 4)) % 4);
+  const binary = atob(withPadding);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+async function decodeKrokiEncodedSource(encoded) {
+  if (!("DecompressionStream" in window)) {
+    throw new Error("Kroki URL import requires browser deflate decode support");
+  }
+
+  const compressedBytes = fromBase64UrlToBytes(encoded);
+  const decompressor = new DecompressionStream("deflate");
+  const decompressedPromise = new Response(decompressor.readable).arrayBuffer();
+  const writer = decompressor.writable.getWriter();
+  await writer.write(compressedBytes);
+  await writer.close();
+  const decompressed = await decompressedPromise;
+  return new TextDecoder().decode(decompressed);
+}
+
+async function findFirstDecodableKrokiUrl(clipboardText) {
+  const urlCandidates = extractUrls(clipboardText);
+  for (const candidate of urlCandidates) {
+    const parsed = parseKrokiRenderUrl(candidate);
+    if (!parsed) {
+      continue;
+    }
+
+    try {
+      const source = await decodeKrokiEncodedSource(parsed.encoded);
+      return {
+        source,
+        diagramTypeFromUrl: parsed.diagramTypeFromUrl,
+        format: parsed.format,
+        originalUrl: parsed.originalUrl,
+      };
+    } catch {
+      // Continue searching candidates until one decodes successfully.
+    }
+  }
+  return null;
 }
 
 function updateStatus(kind, message) {
@@ -1466,6 +1581,15 @@ function getCommandPaletteCommands() {
       toggleFocusMode();
     },
   };
+  const importKrokiUrlCommand = {
+    id: "import-kroki-url-from-clipboard",
+    group: "Navigation",
+    label: "Import Kroki URL from clipboard",
+    keywords: "import kroki clipboard url decode",
+    run: () => {
+      importKrokiUrlFromClipboard({ mode: "manual" });
+    },
+  };
 
   copyFormats.forEach((format) => {
     copyCommands.push({
@@ -1572,6 +1696,7 @@ function getCommandPaletteCommands() {
 
   const orderedCommands = [
     focusServerUrlCommand,
+    importKrokiUrlCommand,
     focusModeCommand,
     ...copyCommands,
     ...downloadCommands,
@@ -1590,6 +1715,7 @@ function getCommandPaletteCommands() {
   return [
     ...recentCommands,
     focusServerUrlCommand,
+    importKrokiUrlCommand,
     focusModeCommand,
     ...copyCommands,
     ...downloadCommands,
@@ -2421,6 +2547,111 @@ function applySampleForDiagramType(diagramType, options = {}) {
   if (render) {
     scheduleAutoRender();
   }
+}
+
+function isPlaceholderSource() {
+  const source = dom.diagramSource.value;
+  if (!source.trim()) {
+    return true;
+  }
+  const sample = getSampleForDiagramType(dom.diagramType.value);
+  return Boolean(sample) && source === sample;
+}
+
+function applyImportedDiagram({ source, diagramTypeFromUrl, manual = false }) {
+  if (typeof source !== "string") {
+    return false;
+  }
+
+  const normalizedType = typeof diagramTypeFromUrl === "string" ? diagramTypeFromUrl.toLowerCase() : "";
+  const isSupportedType = DIAGRAM_SAMPLES.has(normalizedType);
+  const nextDiagramType = isSupportedType ? normalizedType : AUTO_DIAGRAM_TYPE_ID;
+
+  dom.diagramSource.value = source;
+  dom.diagramType.value = nextDiagramType;
+  closeDiagramTypeDropdown();
+  refreshDiagramTypeDropdownUi();
+  if (nextDiagramType === AUTO_DIAGRAM_TYPE_ID) {
+    updateResolvedDiagramType("", null);
+  } else {
+    updateResolvedDiagramType(nextDiagramType, null);
+  }
+  rebuildFormatActionButtons();
+  setActionButtonsEnabled(false);
+  updateSourceScrollState();
+  saveStateToHash();
+  scheduleAutoRender();
+
+  const typeLabel = nextDiagramType === AUTO_DIAGRAM_TYPE_ID ? "Auto Detect" : getDiagramLabel(nextDiagramType);
+  const message = `Imported diagram from clipboard URL (${typeLabel})`;
+  updateStatus("ok", message);
+  if (manual) {
+    showActionCallout("ok", message);
+  }
+  return true;
+}
+
+async function importKrokiUrlFromClipboard({ mode = "auto" } = {}) {
+  const importMode = mode === "manual" ? "manual" : "auto";
+  const isManual = importMode === "manual";
+  if (!isManual && !isPlaceholderSource()) {
+    return false;
+  }
+
+  if (!navigator.clipboard || typeof navigator.clipboard.readText !== "function") {
+    if (isManual) {
+      const message = "Clipboard read is not supported in this browser context";
+      updateStatus("error", message);
+      showActionCallout("error", message);
+    }
+    return false;
+  }
+
+  if (!("DecompressionStream" in window)) {
+    if (isManual) {
+      const message = "Kroki URL import is not supported in this browser (deflate decode unavailable)";
+      updateStatus("error", message);
+      showActionCallout("error", message);
+    }
+    return false;
+  }
+
+  let clipboardText = "";
+  try {
+    clipboardText = await navigator.clipboard.readText();
+  } catch {
+    if (isManual) {
+      const message = "Clipboard access was blocked by the browser";
+      updateStatus("error", message);
+      showActionCallout("error", message);
+    }
+    return false;
+  }
+
+  if (!clipboardText.trim()) {
+    if (isManual) {
+      const message = "Clipboard is empty";
+      updateStatus("error", message);
+      showActionCallout("error", message);
+    }
+    return false;
+  }
+
+  const importCandidate = await findFirstDecodableKrokiUrl(clipboardText);
+  if (!importCandidate) {
+    if (isManual) {
+      const message = "Clipboard does not contain a decodable Kroki diagram URL";
+      updateStatus("error", message);
+      showActionCallout("error", message);
+    }
+    return false;
+  }
+
+  return applyImportedDiagram({
+    source: importCandidate.source,
+    diagramTypeFromUrl: importCandidate.diagramTypeFromUrl,
+    manual: isManual,
+  });
 }
 
 function getThemeSelection(themeId) {
@@ -3579,6 +3810,7 @@ function init() {
   }
   persistUiPrefs();
   scheduleAutoRender();
+  importKrokiUrlFromClipboard({ mode: "auto" });
 }
 
 window.addEventListener("beforeunload", () => {
