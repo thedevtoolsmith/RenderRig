@@ -1,5 +1,7 @@
 # RenderRig
 
+[![Run in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/thedevtoolsmith/RenderRig)
+
 RenderRig is a vanilla HTML/CSS/JavaScript frontend for editing and rendering diagrams with [Kroki](https://kroki.io/).
 
 It serves app assets locally (including fonts and favicon) and can target either a local Kroki backend (recommended) or a remote Kroki instance.
@@ -36,14 +38,6 @@ It serves app assets locally (including fonts and favicon) and can target either
   - last request duration
   - auto-detect details
 
-## Request Timeout Behavior
-
-- Timeout is enforced for Kroki backend requests (POST render, GET fallback, health checks).
-- If elapsed time exceeds configured timeout:
-  - request is cancelled
-  - render status leaves `Rendering...`
-  - error message is shown
-
 ## Keyboard Shortcuts
 
 Uses `Cmd` on macOS and `Ctrl` on non-macOS:
@@ -61,6 +55,22 @@ Uses `Cmd` on macOS and `Ctrl` on non-macOS:
   - `<current-origin>/kroki`
 - If the page is opened without a valid web origin (for example `file://`), it falls back to:
   - `https://kroki.io`
+
+## Open In GitHub Codespaces
+
+This repository includes a `.devcontainer/devcontainer.json` for GitHub Codespaces.
+
+The Codespaces setup uses Docker Compose rather than Podman Compose. GitHub Codespaces and devcontainer tooling are documented around Docker-based development containers, and I did not find supported `podman compose` guidance for Codespaces.
+
+When the codespace starts, the devcontainer runs `docker compose up -d` automatically.
+
+Then open the forwarded port `8080`.
+
+If you stop the stack manually and want to start it again:
+
+```bash
+docker compose up -d
+```
 
 ## Run Entire Stack Locally (Frontend + Kroki)
 
@@ -149,34 +159,22 @@ python3 -m http.server 5173
 
 Then open: [http://127.0.0.1:5173](http://127.0.0.1:5173)
 
-## External Requests
+## DevNotes
 
-RenderRig no longer depends on CDN-hosted fonts/assets.
+### Request Timeout Behavior
 
-The only runtime network requests made by the app are to the configured Kroki backend (render requests, GET fallback requests, and health/reachability checks).
+- Timeout is enforced for Kroki backend requests (POST render, GET fallback, health checks).
+- If elapsed time exceeds configured timeout:
+  - request is cancelled
+  - render status leaves `Rendering...`
+  - error message is shown
 
-## Clipboard Kroki URL Import Notes
+### External Requests
+
+**RenderRig does not depend on any CDN-hosted fonts/assets.** The only runtime network requests made by the app are to the configured Kroki backend (render requests, GET fallback requests, and health/reachability checks).
+
+### Clipboard Kroki URL Import Notes
 
 - Import supports standard Kroki GET render URLs and decodes source from the URL payload.
 - Clipboard import requires `navigator.clipboard.readText` support and browser deflate decode support (`DecompressionStream`).
 - If startup auto-import cannot read or decode clipboard contents, it fails silently by design.
-
-## Repository Layout
-
-```text
-.
-├── AGENTS.md
-├── README.md
-├── docker-compose.yml
-├── podman-compose.yml
-├── deploy/
-│   └── nginx/
-│       └── renderrig.local.conf
-└── frontend/
-    ├── app.js
-    ├── constants.js
-    ├── detector.js
-    ├── index.html
-    ├── styles.css
-    └── theme.js
-```
