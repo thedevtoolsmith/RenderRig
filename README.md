@@ -1,7 +1,5 @@
 # RenderRig
 
-[![Run in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/thedevtoolsmith/RenderRig)
-
 RenderRig is a vanilla HTML/CSS/JavaScript frontend for editing and rendering diagrams with [Kroki](https://kroki.io/).
 
 It serves app assets locally (including fonts and favicon) and can target either a local Kroki backend (recommended) or a remote Kroki instance.
@@ -55,6 +53,32 @@ Uses `Cmd` on macOS and `Ctrl` on non-macOS:
   - `<current-origin>/kroki`
 - If the page is opened without a valid web origin (for example `file://`), it falls back to:
   - `https://kroki.io`
+
+## Deploy on Railway
+
+This repository includes a Railway-ready two-service setup in `railway-compose.yml`:
+
+- `renderrig`: public frontend service built from `frontend/Dockerfile`
+- `kroki`: private backend service using the official `yuzutech/kroki` image
+
+The frontend service proxies `/kroki` to `http://kroki.railway.internal:8000`, so both services stay inside Railway's private network while the browser still talks to a single public origin.
+
+### Create the Railway project
+
+1. In Railway, create a new project.
+2. Import `railway-compose.yml` into the project canvas.
+3. Expose `renderrig` publicly.
+4. Keep `kroki` private.
+
+### Publish a one-click Railway template
+
+After the project is working, create and publish a Railway template from that project. Railway then gives you a template URL and a `Deploy on Railway` button target.
+
+Use this README button format with the template code Railway assigns:
+
+```md
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template/YOUR_TEMPLATE_CODE?utm_medium=integration&utm_source=button&utm_campaign=renderrig)
+```
 
 ## Open In GitHub Codespaces
 
@@ -178,3 +202,7 @@ Then open: [http://127.0.0.1:5173](http://127.0.0.1:5173)
 - Import supports standard Kroki GET render URLs and decodes source from the URL payload.
 - Clipboard import requires `navigator.clipboard.readText` support and browser deflate decode support (`DecompressionStream`).
 - If startup auto-import cannot read or decode clipboard contents, it fails silently by design.
+
+### DevContainer
+
+[![Run in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/thedevtoolsmith/RenderRig)
