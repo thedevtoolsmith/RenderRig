@@ -1,8 +1,6 @@
 # RenderRig
 
-RenderRig is a vanilla HTML/CSS/JavaScript frontend for editing and rendering diagrams with [Kroki](https://kroki.io/).
-
-It serves app assets locally (including fonts and favicon) and can target either a local Kroki backend (recommended) or a remote Kroki instance.
+A self-hostable platform that enables you to generate diagrams via text to diagramming languages using [Kroki](https://kroki.io/).
 
 ## Current Capabilities
 
